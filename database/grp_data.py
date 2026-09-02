@@ -155,3 +155,4 @@ def rm_member(grp_id: str, arr_name: list):
 # rm_member("testing grp", ["6c1363ba-ae17-43e4-82e2-89894e651e89"])
 # print(grpid_by_name("hello hello hello"))
 # print(grp_info_by_id("3fef5e88-8fae-44df-ab49-3b77409eb5d1"))
+# rm_member("group1", "7c1363ba-ae17-43e4-82e2-89894e651e89")
