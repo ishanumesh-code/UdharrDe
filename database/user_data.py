@@ -3,8 +3,10 @@ from .client import supabase #.removed before client for local checking
 
 #USERS
 
-def create_user(user_uid, name, phone, mail):
-    # summi apne auth ke file se complete profile ke bad ye function  call karega jo public.user me user info store karega
+def create_user(user_uid: str, name: str, phone: str, mail: str):
+    '''private(auth will use it)
+    output: user uid
+    call after authentification so user is created in public.user'''
     now = datetime.now().strftime("%b-%d-%Y %H:%M:%S")
 
     try:
@@ -27,9 +29,10 @@ def create_user(user_uid, name, phone, mail):
         print(f"Error: {e}")
         raise e
 
-def update_user(uid, new_name=False, new_phone=False):
-    # ye uid use karke user name and phone ko change kar sakta hai
-    # current user ka uid front end tokens se aiga mostly
+def update_user(uid: str, new_name=False, new_phone=False):
+    '''public
+    output: none
+    uses uid to get user info and update name or phone whichever is given'''
     try:
         response = supabase.table("users").select("*").eq("id", uid).execute()
         if not response.data or len(response.data) == 0:
@@ -46,60 +49,77 @@ def update_user(uid, new_name=False, new_phone=False):
         print(f"Error: {e}")
         raise e
 
-def get_user_by_id(uid):
-    # current user ka data extract karne ke liye use karenge
-    # same last time jaise tokens se uid leke apan current user uid pass karenge
+def get_user_by_id(uid: str):
+    '''private (fast api side may use it)
+    output: user data->(dict)
+    using user uid it returns its whole data'''
     try:
         response = supabase.table("users").select("*").eq("id", uid).execute()
-        if response.data and len(response.data) > 0:
+        if response.data:
             return response.data[0]
-        return None
+        else:
+            print(f"user not found")
     except Exception as e:
         print(f"Error fetching user by id {uid}: {e}")
         return None
 
-def get_user_by_id_list(list_uid: list)-> dict:
+def get_user_by_id_list(list_uid: list)-> list:
+    '''private (fast api may use it, summi uses it rn)
+    output: id and name of users passed in the arg ->(list of dicts)
+    using user uids it returns the dict of ids and names'''
     try:
         response=supabase.table("users").select("id", "name").in_("id", list_uid).execute()
-        return response.data
+        if response.data:
+            return response.data
+        else:
+            print(f"users not found")
     except Exception as e:
         print(f"Error: {e}")
         raise e
 
-def get_user_by_name(name):
-    #user data denge when name is entered
+def get_user_by_name(name: str):
+    '''public & private
+    output: whole data of user ->(dict)
+    using user name it returns the whole user data'''
     try:
-        response= supabase.table("users").select("*").eq("name", name).single().execute()
+        response= supabase.table("users").select("*").eq("name", name).execute()
         if not response.data:
             return ("User doesn't exist")
-        return response.data
+        return response.data[0]
     except Exception as e:
         print(f"Error: {e}")
         raise e
 
-def get_user_by_mail(mail):
-    #user data denge when email is entered
+def get_user_by_mail(mail: str):
+    '''public
+    output: whole data of user ->(dict)
+    using user email gives the whole data of user'''
     try:
-        response= supabase.table("users").select("*").eq("email", mail).single().execute()
+        response= supabase.table("users").select("*").eq("email", mail).execute()
         if not response.data:
             return ("User doesn't exist")
-        return response.data
+        return response.data[0]
     except Exception as e:
         print(f"Error: {e}")
         raise e
 
-def is_friend(uid1, uid2):
-    response=(supabase.table("users").select("friends").eq("id",uid1).single().execute())
-    friends=response.data["friends"]
+def is_friend(uid1: str, uid2: str) ->bool:
+    '''public and private(need to show if a user is ones friend when searched too)
+    output: true if friends else false ->(bool)
+    using uids of both friends tells if they are friends'''
+    response=(supabase.table("users").select("friends").eq("id",uid1).execute())
+    friends=response.data[0]["friends"]
     if uid2 in friends:
         return True
     else:
         return False
 
-def add_f_helper(uid1, uid2):
-    # helper function friends ko mutually add karne ke liye
-    response=(supabase.table("users").select("friends").eq("id",uid1).single().execute())
-    friends=response.data["friends"]
+def add_f_helper(uid1: str, uid2: str):
+    '''private(for database)
+    output: none
+    helper function to help add friends list of users table'''
+    response=(supabase.table("users").select("friends").eq("id",uid1).execute())
+    friends=response.data[0]["friends"]
     if not is_friend(uid1, uid2):
         friends.append(uid2)
         supabase.table("users").update({"friends": friends}).eq("id", uid1).execute()
@@ -107,19 +127,23 @@ def add_f_helper(uid1, uid2):
     else:
         print("friend already exists")
 
-def rm_f_helper(uid1, uid2):
-    # helper function friends ko mutually rm karne ke liye
-        response=(supabase.table("users").select("friends").eq("id",uid1).single().execute())
-        friends=response.data["friends"]
-        if is_friend(uid1, uid2):
-            friends.remove(uid2)
-            supabase.table("users").update({"friends": friends}).eq("id", uid1).execute()
-            print("friend removed")
-        else:
-            print("not friends")
+def rm_f_helper(uid1: str, uid2: str):
+    '''private(database uses it)
+    output: none
+    helper function to help rm user from friends list in users table'''
+    response=(supabase.table("users").select("friends").eq("id",uid1).execute())
+    friends=response.data[0]["friends"]
+    if is_friend(uid1, uid2):
+        friends.remove(uid2)
+        supabase.table("users").update({"friends": friends}).eq("id", uid1).execute()
+        print("friend removed")
+    else:
+        print("not friends")
 
-def add_friends(uid1, uid2):
-    # helper funct use karke both side relation form karke apan friends list me add kar denge
+def add_friends(uid1: str, uid2: str):
+    '''public
+    output: none
+    it adds friends mutually'''
     try:
         add_f_helper(uid1, uid2)
         add_f_helper(uid2, uid1)
@@ -128,6 +152,9 @@ def add_friends(uid1, uid2):
         raise e
 
 def rm_friends(uid1, uid2):
+    '''public
+    ouput: none
+    it removes friends from  each others list mutually'''
     try:
         rm_f_helper(uid1, uid2)
         rm_f_helper(uid2, uid1)
@@ -135,14 +162,47 @@ def rm_friends(uid1, uid2):
         print(f"Error: e")
         raise e
 
-def get_user_grps(uid):
+def get_user_grps(uid: str)-> list:
+    '''public
+    output: list of uuids of grps a user is in
+    use uid of user to return the list of grp ids of grps in which the user is a member of'''
     try:
         response=supabase.table("users").select("in_grp").eq("id", uid).execute()
-        return response.data[0]["in_grp"]
+        if response.data:
+            return response.data[0]["in_grp"]
+        else:
+            print(f"user doesn't exist")
     except Exception as e:
         print(f"Error: {e}")
         raise e
 
+def get_user_frnds(uid: str):
+    '''public
+    output: list of friend uids-> (list of uids)
+    give uid of user and get his friend list'''
+    try:
+        response=supabase.table("users").select("friends").eq("id", uid).execute()
+        if response:
+            return response.data[0]["friends"]
+        else:
+            print(f"user doesn't exist")
+    except Exception as e:
+        print(f"Error {e}")
+        raise e
+
+def get_exp_frnds(uid: str):
+    '''public
+    ouput: {uid: exp}-> (dict)
+    output will give a dict with friend uid as key and exp with the user as value'''
+    try:
+        response=supabase.table("users").select("exp_frnd").eq("id", uid).execute()
+        if response:
+            return response.data[0]["exp_frnd"]
+        else:
+            print("user doesn't exist")
+    except Exception as e:
+        print(f"Error: e")
+        raise e
 #-------------------
 # create_user
 # create_user("6c1363ba-ae17-43e4-82e2-89894e651e89", "asdf", '9876543210', "mail@mail.com")
@@ -161,3 +221,4 @@ def get_user_grps(uid):
 # hello=(get_user_grps("6c1363ba-ae17-43e4-82e2-89894e651e89"))
 # print(grp_info_by_id(hello[0]))
 # print(get_user_by_id_list(["564bc79e-705f-440a-8adc-48787d37ab79", "6c1363ba-ae17-43e4-82e2-89894e651e89"]))
+#print(get_user_frnds("7c1363ba-ae17-43e4-82e2-89894e651e89"))
